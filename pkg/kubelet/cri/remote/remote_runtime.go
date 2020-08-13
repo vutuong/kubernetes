@@ -276,6 +276,40 @@ func (r *RemoteRuntimeService) StopContainer(containerID string, timeout int64) 
 	return nil
 }
 
+func (r *RemoteRuntimeService) CheckpointContainer(containerID string, options *runtimeapi.CheckpointContainerOptions) error {
+	klog.V(10).Infof("[RemoteRuntimeService] CheckpointContainer (containerID=%v, options=%v)", containerID, options)
+	ctx, cancel := getContextWithTimeout(r.timeout)
+	defer cancel()
+
+	_, err := r.runtimeClient.CheckpointContainer(ctx, &runtimeapi.CheckpointContainerRequest{
+		ContainerId: containerID,
+		Options:     options,
+	})
+	if err != nil {
+		klog.Errorf("CheckpointContainer %q from runtime service failed: %v", containerID, err)
+	}
+	klog.V(10).Infof("[RemoteRuntimeService] CheckpointContainer Response (containerID=%v)", containerID)
+
+	return nil
+}
+
+func (r *RemoteRuntimeService) RestoreContainer(containerID string, options *runtimeapi.RestoreContainerOptions) error {
+	klog.V(10).Infof("[RemoteRuntimeService] RestoreContainer (containerID=%v, options=%v)", containerID, options)
+	ctx, cancel := getContextWithTimeout(r.timeout)
+	defer cancel()
+
+	_, err := r.runtimeClient.RestoreContainer(ctx, &runtimeapi.RestoreContainerRequest{
+		ContainerId: containerID,
+		Options:     options,
+	})
+	if err != nil {
+		klog.Errorf("RestoreContainer %q from runtime service failed: %v", containerID, err)
+	}
+	klog.V(10).Infof("[RemoteRuntimeService] RestoreContainer Response (containerID=%v)", containerID)
+
+	return nil
+}
+
 // RemoveContainer removes the container. If the container is running, the container
 // should be forced to removal.
 func (r *RemoteRuntimeService) RemoveContainer(containerID string) error {

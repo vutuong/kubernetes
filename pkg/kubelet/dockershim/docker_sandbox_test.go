@@ -191,7 +191,7 @@ func TestSandboxStatusAfterRestart(t *testing.T) {
 
 	createResp, err := ds.client.CreateContainer(*createConfig)
 	assert.NoError(t, err)
-	err = ds.client.StartContainer(createResp.ID)
+	err = ds.client.StartContainer(createResp.ID, "")
 	assert.NoError(t, err)
 
 	// Check status without RunPodSandbox() having set up networking

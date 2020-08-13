@@ -37,6 +37,10 @@ type ContainerManager interface {
 	StartContainer(containerID string) error
 	// StopContainer stops a running container with a grace period (i.e., timeout).
 	StopContainer(containerID string, timeout int64) error
+	// CheckpointContainer creates a container checkpoint.
+	CheckpointContainer(containerID string, options *runtimeapi.CheckpointContainerOptions) error
+	// RestoreContainer restores a container from a checkpoint.
+	RestoreContainer(containerID string, options *runtimeapi.RestoreContainerOptions) error
 	// RemoveContainer removes the container.
 	RemoveContainer(containerID string) error
 	// ListContainers lists all containers by filters.

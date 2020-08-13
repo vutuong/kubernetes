@@ -19,6 +19,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"path"
 	"time"
 
 	"google.golang.org/grpc"
@@ -171,6 +172,24 @@ func (f *RemoteRuntime) StopContainer(ctx context.Context, req *kubeapi.StopCont
 	}
 
 	return &kubeapi.StopContainerResponse{}, nil
+}
+
+func (f *RemoteRuntime) CheckpointContainer(ctx context.Context, req *kubeapi.CheckpointContainerRequest) (*kubeapi.CheckpointContainerResponse, error) {
+	err := f.RuntimeService.CheckpointContainer(req.ContainerId, path.Base(req.Options.CheckpointPath))
+	if err != nil {
+		return nil, err
+	}
+
+	return &kubeapi.CheckpointContainerResponse{}, nil
+}
+
+func (f *RemoteRuntime) RestoreContainer(ctx context.Context, req *kubeapi.RestoreContainerRequest) (*kubeapi.RestoreContainerResponse, error) {
+	err := f.RuntimeService.RestoreContainer(req.ContainerId, path.Base(req.Options.CheckpointPath))
+	if err != nil {
+		return nil, err
+	}
+
+	return &kubeapi.RestoreContainerResponse{}, nil
 }
 
 // RemoveContainer removes the container. If the container is running, the

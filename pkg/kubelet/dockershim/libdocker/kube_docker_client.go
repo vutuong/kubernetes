@@ -155,10 +155,22 @@ func (d *kubeDockerClient) CreateContainer(opts dockertypes.ContainerCreateConfi
 	return &createResp, nil
 }
 
-func (d *kubeDockerClient) StartContainer(id string) error {
+func (d *kubeDockerClient) StartContainer(id, checkpointId string) error {
 	ctx, cancel := d.getTimeoutContext()
 	defer cancel()
-	err := d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{})
+	err := d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{
+		CheckpointID: checkpointId,
+	})
+	if ctxErr := contextError(ctx); ctxErr != nil {
+		return ctxErr
+	}
+	return err
+}
+
+func (d *kubeDockerClient) CheckpointContainer(id string, opts dockertypes.CheckpointCreateOptions) error {
+	ctx, cancel := d.getTimeoutContext()
+	defer cancel()
+	err := d.client.CheckpointCreate(ctx, id, opts)
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return ctxErr
 	}

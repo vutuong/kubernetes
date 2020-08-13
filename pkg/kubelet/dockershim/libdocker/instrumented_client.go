@@ -94,11 +94,20 @@ func (in instrumentedInterface) CreateContainer(opts dockertypes.ContainerCreate
 	return out, err
 }
 
-func (in instrumentedInterface) StartContainer(id string) error {
+func (in instrumentedInterface) StartContainer(id, checkpointId string) error {
 	const operation = "start_container"
 	defer recordOperation(operation, time.Now())
 
-	err := in.client.StartContainer(id)
+	err := in.client.StartContainer(id, checkpointId)
+	recordError(operation, err)
+	return err
+}
+
+func (in instrumentedInterface) CheckpointContainer(id string, opts dockertypes.CheckpointCreateOptions) error {
+	const operation = "create_container_checkpoint"
+	defer recordOperation(operation, time.Now())
+
+	err := in.client.CheckpointContainer(id, opts)
 	recordError(operation, err)
 	return err
 }

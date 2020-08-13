@@ -397,6 +397,16 @@ func (r *FakeRuntimeService) StopContainer(containerID string, timeout int64) er
 	return nil
 }
 
+func (r *FakeRuntimeService) CheckpointContainer(containerID, checkpointID string) error {
+	// TODO(schrej): Implement
+	return nil
+}
+
+func (r *FakeRuntimeService) RestoreContainer(containerID, checkpointID string) error {
+	// TODO(schrej): Implement
+	return nil
+}
+
 func (r *FakeRuntimeService) RemoveContainer(containerID string) error {
 	r.Lock()
 	defer r.Unlock()

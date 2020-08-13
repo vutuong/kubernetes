@@ -48,8 +48,9 @@ type Interface interface {
 	InspectContainer(id string) (*dockertypes.ContainerJSON, error)
 	InspectContainerWithSize(id string) (*dockertypes.ContainerJSON, error)
 	CreateContainer(dockertypes.ContainerCreateConfig) (*dockercontainer.ContainerCreateCreatedBody, error)
-	StartContainer(id string) error
+	StartContainer(id, checkpoint string) error
 	StopContainer(id string, timeout time.Duration) error
+	CheckpointContainer(id string, opts dockertypes.CheckpointCreateOptions) error
 	UpdateContainerResources(id string, updateConfig dockercontainer.UpdateConfig) error
 	RemoveContainer(id string, opts dockertypes.ContainerRemoveOptions) error
 	InspectImageByRef(imageRef string) (*dockertypes.ImageInspect, error)

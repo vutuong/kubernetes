@@ -22,6 +22,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -263,24 +265,33 @@ func (ds *dockerService) removeContainerLogSymlink(containerID string) error {
 }
 
 // StartContainer starts the container.
-func (ds *dockerService) StartContainer(_ context.Context, r *runtimeapi.StartContainerRequest) (*runtimeapi.StartContainerResponse, error) {
-	err := ds.client.StartContainer(r.ContainerId)
+func (ds *dockerService) StartContainer(ctx context.Context, r *runtimeapi.StartContainerRequest) (*runtimeapi.StartContainerResponse, error) {
+	err := ds.startContainer(ctx, r.ContainerId, "")
+	if err != nil {
+		return nil, err
+	}
+	return &runtimeapi.StartContainerResponse{}, nil
+}
+
+// startContainer is used by StartContainer and RestoreContainer to start a container.
+func (ds *dockerService) startContainer(_ context.Context, containerId, checkpointId string) error {
+	err := ds.client.StartContainer(containerId, checkpointId)
 
 	// Create container log symlink for all containers (including failed ones).
-	if linkError := ds.createContainerLogSymlink(r.ContainerId); linkError != nil {
+	if linkError := ds.createContainerLogSymlink(containerId); linkError != nil {
 		// Do not stop the container if we failed to create symlink because:
 		//   1. This is not a critical failure.
 		//   2. We don't have enough information to properly stop container here.
 		// Kubelet will surface this error to user via an event.
-		return nil, linkError
+		return linkError
 	}
 
 	if err != nil {
 		err = transformStartContainerError(err)
-		return nil, fmt.Errorf("failed to start container %q: %v", r.ContainerId, err)
+		return fmt.Errorf("failed to start container %q: %v", containerId, err)
 	}
 
-	return &runtimeapi.StartContainerResponse{}, nil
+	return nil
 }
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
@@ -290,6 +301,44 @@ func (ds *dockerService) StopContainer(_ context.Context, r *runtimeapi.StopCont
 		return nil, err
 	}
 	return &runtimeapi.StopContainerResponse{}, nil
+}
+
+// CheckpointContainer creates a checkpoint for the container.
+func (ds *dockerService) CheckpointContainer(_ context.Context, r *runtimeapi.CheckpointContainerRequest) (*runtimeapi.CheckpointContainerResponse, error) {
+	err := ds.client.CheckpointContainer(r.ContainerId, dockertypes.CheckpointCreateOptions{
+		CheckpointID:  path.Base(r.Options.CheckpointPath),
+		CheckpointDir: path.Dir(r.Options.CheckpointPath),
+		Exit:          !r.Options.LeaveRunning,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &runtimeapi.CheckpointContainerResponse{}, nil
+}
+
+// RestoreContainer restores a container from a checkpoint.
+func (ds *dockerService) RestoreContainer(ctx context.Context, r *runtimeapi.RestoreContainerRequest) (*runtimeapi.RestoreContainerResponse, error) {
+	checkpointID := path.Base(r.Options.CheckpointPath)
+	dockerCPPath := path.Join("/var/lib/docker/containers", r.ContainerId, "checkpoints", checkpointID)
+	// cmd := exec.Command("ln", "-s", r.Options.CheckpointPath, dockerCPPath)
+	cmd := exec.Command("cp", "-r", r.Options.CheckpointPath, dockerCPPath)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to link checkpoint: %v %v", string(out), err)
+	}
+
+	err = ds.startContainer(ctx, r.ContainerId, checkpointID)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd = exec.Command("rm", "-r", dockerCPPath)
+	err = cmd.Run()
+	if err != nil {
+		klog.Warningf("failed to delete checkpoint: %v", err)
+	}
+
+	return &runtimeapi.RestoreContainerResponse{}, nil
 }
 
 // RemoveContainer removes the container.
