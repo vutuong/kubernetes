@@ -152,6 +152,7 @@ spec:
             - "406"
             topologyKey: "407"
       automountServiceAccountToken: false
+      clonePod: "434"
       containers:
       - args:
         - "222"
@@ -945,8 +946,8 @@ status:
   availableReplicas: -983106472
   conditions:
   - lastTransitionTime: "2376-03-18T02:40:44Z"
-    message: "435"
-    reason: "434"
+    message: "436"
+    reason: "435"
     status: 站畦f黹ʩ鹸ɷLȋ
     type: ×軓鼐嵱宯ÙQ阉(闒ƈƳ萎Ŋ
   fullyLabeledReplicas: -2099726885

@@ -39,9 +39,10 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/metrics/collectors"
+	"k8s.io/kubernetes/pkg/kubelet/migration"
 	"k8s.io/utils/clock"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -144,9 +145,10 @@ func ListenAndServeKubeletServer(
 	enableDebuggingHandlers,
 	enableContentionProfiling,
 	redirectContainerStreaming bool,
-	criHandler http.Handler) {
+	criHandler http.Handler,
+	migrationManager migration.Manager) {
 	klog.Infof("Starting to listen on %s:%d", address, port)
-	handler := NewServer(host, resourceAnalyzer, auth, enableCAdvisorJSONEndpoints, enableDebuggingHandlers, enableContentionProfiling, redirectContainerStreaming, criHandler)
+	handler := NewServer(host, resourceAnalyzer, auth, enableCAdvisorJSONEndpoints, enableDebuggingHandlers, enableContentionProfiling, redirectContainerStreaming, criHandler, migrationManager)
 	s := &http.Server{
 		Addr:           net.JoinHostPort(address.String(), strconv.FormatUint(uint64(port), 10)),
 		Handler:        &handler,
@@ -168,7 +170,7 @@ func ListenAndServeKubeletServer(
 // ListenAndServeKubeletReadOnlyServer initializes a server to respond to HTTP network requests on the Kubelet.
 func ListenAndServeKubeletReadOnlyServer(host HostInterface, resourceAnalyzer stats.ResourceAnalyzer, address net.IP, port uint, enableCAdvisorJSONEndpoints bool) {
 	klog.V(1).Infof("Starting to listen read-only on %s:%d", address, port)
-	s := NewServer(host, resourceAnalyzer, nil, enableCAdvisorJSONEndpoints, false, false, false, nil)
+	s := NewServer(host, resourceAnalyzer, nil, enableCAdvisorJSONEndpoints, false, false, false, nil, nil)
 
 	server := &http.Server{
 		Addr:           net.JoinHostPort(address.String(), strconv.FormatUint(uint64(port), 10)),
@@ -223,7 +225,8 @@ func NewServer(
 	enableDebuggingHandlers,
 	enableContentionProfiling,
 	redirectContainerStreaming bool,
-	criHandler http.Handler) Server {
+	criHandler http.Handler,
+	migrationManager migration.Manager) Server {
 	server := Server{
 		host:                       host,
 		resourceAnalyzer:           resourceAnalyzer,
@@ -236,7 +239,7 @@ func NewServer(
 	if auth != nil {
 		server.InstallAuthFilter()
 	}
-	server.InstallDefaultHandlers(enableCAdvisorJSONEndpoints)
+	server.InstallDefaultHandlers(enableCAdvisorJSONEndpoints, migrationManager)
 	if enableDebuggingHandlers {
 		server.InstallDebuggingHandlers(criHandler)
 		if enableContentionProfiling {
@@ -311,7 +314,7 @@ func (s *Server) getMetricMethodBucket(method string) string {
 
 // InstallDefaultHandlers registers the default set of supported HTTP request
 // patterns with the restful Container.
-func (s *Server) InstallDefaultHandlers(enableCAdvisorJSONEndpoints bool) {
+func (s *Server) InstallDefaultHandlers(enableCAdvisorJSONEndpoints bool, migrationManager migration.Manager) {
 	s.addMetricsBucketMatcher("healthz")
 	healthz.InstallHandler(s.restfulCont,
 		healthz.PingHealthz,
@@ -327,6 +330,14 @@ func (s *Server) InstallDefaultHandlers(enableCAdvisorJSONEndpoints bool) {
 	ws.Route(ws.GET("").
 		To(s.getPods).
 		Operation("getPods"))
+	s.restfulCont.Add(ws)
+
+	s.addMetricsBucketMatcher("migration")
+	ws = &restful.WebService{}
+	ws.Path("/migrate").Produces(restful.MIME_JSON)
+	ws.Route(ws.GET("/{podNamespace}/{podID}/{containerName}").
+		To(migrationManager.HandleMigrationRequest).
+		Operation("migratePod"))
 	s.restfulCont.Add(ws)
 
 	s.addMetricsBucketMatcher("stats")

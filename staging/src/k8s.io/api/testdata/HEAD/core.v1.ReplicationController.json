@@ -1363,7 +1363,8 @@
             }
           }
         ],
-        "setHostnameAsFQDN": false
+        "setHostnameAsFQDN": false,
+        "clonePod": "429"
       }
     }
   },
@@ -1378,8 +1379,8 @@
         "type": "Ĉ癯頯aɴí(Ȟ9\"",
         "status": "oǰ'źĄ栧焷蜪sÛ°",
         "lastTransitionTime": "2129-09-06T04:28:43Z",
-        "reason": "429",
-        "message": "430"
+        "reason": "430",
+        "message": "431"
       }
     ]
   }

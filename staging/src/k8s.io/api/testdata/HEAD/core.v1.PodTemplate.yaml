@@ -137,6 +137,7 @@ template:
           - "393"
           topologyKey: "394"
     automountServiceAccountToken: false
+    clonePod: "421"
     containers:
     - args:
       - "212"

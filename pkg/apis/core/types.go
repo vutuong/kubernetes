@@ -2773,6 +2773,11 @@ type PodSpec struct {
 	// All topologySpreadConstraints are ANDed.
 	// +optional
 	TopologySpreadConstraints []TopologySpreadConstraint
+
+	// ClonePod is the reference to a pod that should be cloned by this pod.
+	// This parameter is only relevant when a pod is first created.
+	// +optional
+	ClonePod string `json:"clonePod,omitempty" protobuf:"bytes,36,opt,name=clonePod"`
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the

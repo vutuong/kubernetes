@@ -20,7 +20,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	goruntime "runtime"
+	"sync"
 	"time"
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
@@ -46,6 +48,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/images"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
+	"k8s.io/kubernetes/pkg/kubelet/migration"
 	proberesults "k8s.io/kubernetes/pkg/kubelet/prober/results"
 	"k8s.io/kubernetes/pkg/kubelet/runtimeclass"
 	"k8s.io/kubernetes/pkg/kubelet/types"
@@ -132,6 +135,9 @@ type kubeGenericRuntimeManager struct {
 
 	// Cache last per-container error message to reduce log spam
 	logReduction *logreduction.LogReduction
+
+	// Migration manager
+	migrationManager migration.Manager
 }
 
 // KubeGenericRuntime is a interface contains interfaces for container runtime and command.
@@ -169,6 +175,7 @@ func NewKubeGenericRuntimeManager(
 	internalLifecycle cm.InternalContainerLifecycle,
 	legacyLogProvider LegacyLogProvider,
 	runtimeClassManager *runtimeclass.Manager,
+	migrationManager migration.Manager,
 ) (KubeGenericRuntime, error) {
 	kubeRuntimeManager := &kubeGenericRuntimeManager{
 		recorder:            recorder,
@@ -187,6 +194,7 @@ func NewKubeGenericRuntimeManager(
 		legacyLogProvider:   legacyLogProvider,
 		runtimeClassManager: runtimeClassManager,
 		logReduction:        logreduction.NewLogReduction(identicalErrorDelay),
+		migrationManager:    migrationManager,
 	}
 
 	typedVersion, err := kubeRuntimeManager.getTypedVersion()
@@ -824,11 +832,114 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 		klog.V(4).Infof("Completed init container %q for pod %q", container.Name, format.Pod(pod))
 	}
 
-	// Step 7: start containers in podContainerChanges.ContainersToStart.
+	// Step 7: start or clone the containers in podContainerChanges.ContainersToStart.
+	// If there is reference to a Pod to clone and no container has been started yet, assume we need to migrate.
+	// TODO(schrej): make sure this doesn't lead to issues with crashed single-container pods. (pod.Status.Phase == v1.PodPending &&)
+	// Maybe remove ClonePod after we're done.
+	// TODO(schrej): how to handle failure?
+	// This contains most parts from the regular start() function
+	klog.Info("Should we migrate?", pod.Status.Phase, pod.Spec.ClonePod, len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers))
+	if pod.Spec.ClonePod != "" && len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers) {
+		containerIDs := make([]string, len(podContainerChanges.ContainersToStart))
+		containerConfigs := make([]*runtimeapi.ContainerConfig, len(podContainerChanges.ContainersToStart))
+		startContainerResults := make([]*kubecontainer.SyncResult, len(podContainerChanges.ContainersToStart))
+		// Create all the containers we want to migrate
+		for _, idx := range podContainerChanges.ContainersToStart {
+			spec := containerStartSpec(&pod.Spec.Containers[idx])
+			startContainerResults[idx] = kubecontainer.NewSyncResult(kubecontainer.StartContainer, spec.container.Name)
+			result.AddSyncResult(startContainerResults[idx])
+
+			klog.V(1).Infof("Creating container %+v in pod %v by migration", spec.container, format.Pod(pod))
+
+			// Fetch image and create container
+			// TODO(schrej): We probably need to fetch the image from the old pod to make sure its exactly identical
+			var msg string
+			var err error
+			if containerIDs[idx], containerConfigs[idx], msg, err = m.createContainer(podSandboxID, podSandboxConfig, spec, pod, podStatus, pullSecrets, podIP, podIPs); err != nil {
+				startContainerResults[idx].Fail(err, msg)
+				// known errors that are logged in other places are logged at higher levels here to avoid
+				// repetitive log spam
+				switch {
+				case err == images.ErrImagePullBackOff:
+					klog.V(3).Infof("container creation failed: %v: %s", err, msg)
+				default:
+					utilruntime.HandleError(fmt.Errorf("container creation failed: %v: %s", err, msg))
+				}
+				return
+			}
+
+		}
+
+		// Prepare the migration on the source node
+		migResult, err := m.migrationManager.TriggerPodMigration(pod)
+		if err != nil {
+			utilruntime.HandleError(fmt.Errorf("failed to migrate pod %s: %v", pod.Name, err))
+		}
+
+		// Start the containers
+		wg := sync.WaitGroup{}
+		for _, idx := range podContainerChanges.ContainersToStart {
+			wg.Add(1)
+			go func(idx int) {
+				container := &pod.Spec.Containers[idx]
+				migrationContainer, ok := migResult.Containers[container.Name]
+				if !ok {
+					utilruntime.HandleError(fmt.Errorf("container %s missing from migration result while migrating pod %s", container.Name, pod.Name))
+					return
+				}
+				if msg, err := m.restoreContainer(podSandboxConfig, containerStartSpec(&pod.Spec.Containers[idx]), pod, containerIDs[idx], containerConfigs[idx], migrationContainer.CheckpointPath); err != nil {
+					startContainerResults[idx].Fail(err, msg)
+					utilruntime.HandleError(fmt.Errorf("container start failed: %v: %s", err, msg))
+					return
+				}
+				wg.Done()
+			}(idx)
+		}
+		wg.Wait()
+
+		return
+	}
+
 	for _, idx := range podContainerChanges.ContainersToStart {
 		start("container", containerStartSpec(&pod.Spec.Containers[idx]))
 	}
 
+	return
+}
+
+func (m *kubeGenericRuntimeManager) PrepareMigratePod(pod *v1.Pod, podStatus *kubecontainer.PodStatus, options *kubecontainer.MigratePodOptions) {
+	klog.V(2).Info("Preparing Pod %v for migration. %v", pod.Name, options)
+	for _, container := range pod.Spec.Containers {
+		ok := false
+	ContainsLoop:
+		for _, c := range options.Containers {
+			if container.Name == c {
+				ok = true
+				break ContainsLoop
+			}
+		}
+		if !ok {
+			continue
+		}
+
+		klog.V(2).Infof("Checkpointing container %v.", container.Name)
+
+		containerStatus := podStatus.FindContainerStatusByName(container.Name)
+
+		// If a container isn't running, it can't be live-migrated.
+		if containerStatus == nil || containerStatus.State != kubecontainer.ContainerStateRunning {
+			continue
+		}
+		checkpointName := fmt.Sprintf("%s_%s", pod.Name, container.Name)
+		m.runtimeService.CheckpointContainer(containerStatus.ID.ID, &runtimeapi.CheckpointContainerOptions{
+			CheckpointPath: "/var/lib/kubelet/migration/" + checkpointName,
+		})
+
+		// TODO(schrej): support mutliple containers at once
+		options.CheckpointPath <- path.Join("/var/lib/kubelet/migration", checkpointName)
+		return
+	}
+	options.CheckpointPath <- ""
 	return
 }
 

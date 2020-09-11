@@ -1317,7 +1317,8 @@
         }
       }
     ],
-    "setHostnameAsFQDN": true
+    "setHostnameAsFQDN": true,
+    "clonePod": "408"
   },
   "status": {
     "phase": "l",
@@ -1327,27 +1328,27 @@
         "status": "pɉ驻(+",
         "lastProbeTime": "2645-05-22T09:25:47Z",
         "lastTransitionTime": "2090-10-18T11:24:27Z",
-        "reason": "408",
-        "message": "409"
+        "reason": "409",
+        "message": "410"
       }
     ],
-    "message": "410",
-    "reason": "411",
-    "nominatedNodeName": "412",
-    "hostIP": "413",
-    "podIP": "414",
+    "message": "411",
+    "reason": "412",
+    "nominatedNodeName": "413",
+    "hostIP": "414",
+    "podIP": "415",
     "podIPs": [
       {
-        "ip": "415"
+        "ip": "416"
       }
     ],
     "initContainerStatuses": [
       {
-        "name": "416",
+        "name": "417",
         "state": {
           "waiting": {
-            "reason": "417",
-            "message": "418"
+            "reason": "418",
+            "message": "419"
           },
           "running": {
             "startedAt": "2048-05-20T12:15:51Z"
@@ -1355,17 +1356,17 @@
           "terminated": {
             "exitCode": 115522160,
             "signal": -1817503524,
-            "reason": "419",
-            "message": "420",
+            "reason": "420",
+            "message": "421",
             "startedAt": "2219-02-28T09:09:45Z",
             "finishedAt": "2741-03-13T06:24:49Z",
-            "containerID": "421"
+            "containerID": "422"
           }
         },
         "lastState": {
           "waiting": {
-            "reason": "422",
-            "message": "423"
+            "reason": "423",
+            "message": "424"
           },
           "running": {
             "startedAt": "2162-06-26T19:07:06Z"
@@ -1373,28 +1374,28 @@
           "terminated": {
             "exitCode": -710202728,
             "signal": -545370104,
-            "reason": "424",
-            "message": "425",
+            "reason": "425",
+            "message": "426",
             "startedAt": "2714-05-29T12:47:22Z",
             "finishedAt": "2507-11-24T14:34:53Z",
-            "containerID": "426"
+            "containerID": "427"
           }
         },
         "ready": false,
         "restartCount": -802664960,
-        "image": "427",
-        "imageID": "428",
-        "containerID": "429",
+        "image": "428",
+        "imageID": "429",
+        "containerID": "430",
         "started": false
       }
     ],
     "containerStatuses": [
       {
-        "name": "430",
+        "name": "431",
         "state": {
           "waiting": {
-            "reason": "431",
-            "message": "432"
+            "reason": "432",
+            "message": "433"
           },
           "running": {
             "startedAt": "2947-07-29T10:08:50Z"
@@ -1402,17 +1403,17 @@
           "terminated": {
             "exitCode": 1783825641,
             "signal": -173761204,
-            "reason": "433",
-            "message": "434",
+            "reason": "434",
+            "message": "435",
             "startedAt": "2522-07-19T12:32:16Z",
             "finishedAt": "2270-12-17T08:26:56Z",
-            "containerID": "435"
+            "containerID": "436"
           }
         },
         "lastState": {
           "waiting": {
-            "reason": "436",
-            "message": "437"
+            "reason": "437",
+            "message": "438"
           },
           "running": {
             "startedAt": "2553-08-13T19:38:34Z"
@@ -1420,28 +1421,28 @@
           "terminated": {
             "exitCode": 1702640464,
             "signal": -1569123121,
-            "reason": "438",
-            "message": "439",
+            "reason": "439",
+            "message": "440",
             "startedAt": "2208-06-28T06:16:27Z",
             "finishedAt": "2837-10-14T23:23:27Z",
-            "containerID": "440"
+            "containerID": "441"
           }
         },
         "ready": true,
         "restartCount": 718205480,
-        "image": "441",
-        "imageID": "442",
-        "containerID": "443",
+        "image": "442",
+        "imageID": "443",
+        "containerID": "444",
         "started": true
       }
     ],
     "ephemeralContainerStatuses": [
       {
-        "name": "444",
+        "name": "445",
         "state": {
           "waiting": {
-            "reason": "445",
-            "message": "446"
+            "reason": "446",
+            "message": "447"
           },
           "running": {
             "startedAt": "2046-11-30T08:06:33Z"
@@ -1449,17 +1450,17 @@
           "terminated": {
             "exitCode": -1784164316,
             "signal": -732390892,
-            "reason": "447",
-            "message": "448",
+            "reason": "448",
+            "message": "449",
             "startedAt": "2406-01-16T02:14:15Z",
             "finishedAt": "2231-01-26T17:02:10Z",
-            "containerID": "449"
+            "containerID": "450"
           }
         },
         "lastState": {
           "waiting": {
-            "reason": "450",
-            "message": "451"
+            "reason": "451",
+            "message": "452"
           },
           "running": {
             "startedAt": "2911-12-04T12:23:46Z"
@@ -1467,18 +1468,18 @@
           "terminated": {
             "exitCode": 1555151820,
             "signal": -1757808404,
-            "reason": "452",
-            "message": "453",
+            "reason": "453",
+            "message": "454",
             "startedAt": "2599-12-06T02:53:25Z",
             "finishedAt": "2412-02-08T17:08:41Z",
-            "containerID": "454"
+            "containerID": "455"
           }
         },
         "ready": true,
         "restartCount": 1615460891,
-        "image": "455",
-        "imageID": "456",
-        "containerID": "457",
+        "image": "456",
+        "imageID": "457",
+        "containerID": "458",
         "started": true
       }
     ]

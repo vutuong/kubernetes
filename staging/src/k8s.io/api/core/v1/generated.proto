@@ -3559,6 +3559,11 @@ message PodSpec {
   // Default to false.
   // +optional
   optional bool setHostnameAsFQDN = 35;
+
+  // ClonePod is the reference to a pod that should be cloned by this pod.
+  // This parameter is only relevant when a pod is first created.
+  // +optional
+  optional string clonePod = 36;
 }
 
 // PodStatus represents information about the status of a pod. Status may trail the actual

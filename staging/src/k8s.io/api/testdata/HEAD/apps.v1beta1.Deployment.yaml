@@ -155,6 +155,7 @@ spec:
             - "398"
             topologyKey: "399"
       automountServiceAccountToken: false
+      clonePod: "426"
       containers:
       - args:
         - "216"
@@ -953,8 +954,8 @@ status:
   conditions:
   - lastTransitionTime: "2097-04-15T07:29:40Z"
     lastUpdateTime: "2042-08-25T05:10:04Z"
-    message: "427"
-    reason: "426"
+    message: "428"
+    reason: "427"
     status: ""
     type: 昞财Î嘝zʄ!ć惍Bi攵&ý"ʀ
   observedGeneration: 3883700826410970519

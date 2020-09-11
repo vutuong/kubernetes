@@ -103,6 +103,10 @@ func TestString(t *testing.T) {
 			expected: "kill",
 		},
 		{
+			sp:       SyncPodMigrate,
+			expected: "migrate",
+		},
+		{
 			sp:       50,
 			expected: "unknown",
 		},

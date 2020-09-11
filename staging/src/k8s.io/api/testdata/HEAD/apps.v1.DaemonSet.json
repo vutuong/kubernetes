@@ -1379,7 +1379,8 @@
             }
           }
         ],
-        "setHostnameAsFQDN": true
+        "setHostnameAsFQDN": true,
+        "clonePod": "433"
       }
     },
     "updateStrategy": {
@@ -1406,8 +1407,8 @@
         "type": "",
         "status": "B/ü橚2ț}¹旛坷硂",
         "lastTransitionTime": "2776-12-09T00:48:05Z",
-        "reason": "433",
-        "message": "434"
+        "reason": "434",
+        "message": "435"
       }
     ]
   }

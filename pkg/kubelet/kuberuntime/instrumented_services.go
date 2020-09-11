@@ -104,6 +104,24 @@ func (in instrumentedRuntimeService) StopContainer(containerID string, timeout i
 	return err
 }
 
+func (in instrumentedRuntimeService) CheckpointContainer(containerID string, options *runtimeapi.CheckpointContainerOptions) error {
+	const operation = "checkpoint_container"
+	defer recordOperation(operation, time.Now())
+
+	err := in.service.CheckpointContainer(containerID, options)
+	recordError(operation, err)
+	return err
+}
+
+func (in instrumentedRuntimeService) RestoreContainer(containerID string, options *runtimeapi.RestoreContainerOptions) error {
+	const operation = "restore_container"
+	defer recordOperation(operation, time.Now())
+
+	err := in.service.RestoreContainer(containerID, options)
+	recordError(operation, err)
+	return err
+}
+
 func (in instrumentedRuntimeService) RemoveContainer(containerID string) error {
 	const operation = "remove_container"
 	defer recordOperation(operation, time.Now())

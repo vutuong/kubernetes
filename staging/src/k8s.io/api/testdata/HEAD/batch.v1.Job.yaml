@@ -151,6 +151,7 @@ spec:
             - "402"
             topologyKey: "403"
       automountServiceAccountToken: false
+      clonePod: "430"
       containers:
       - args:
         - "221"
@@ -946,8 +947,8 @@ status:
   conditions:
   - lastProbeTime: "2740-10-14T09:28:06Z"
     lastTransitionTime: "2133-04-18T01:37:37Z"
-    message: "431"
-    reason: "430"
+    message: "432"
+    reason: "431"
     status: 试揯遐e4'ď曕椐敛n
     type: -ÚŜĂwǐ擨^幸$Ż料ȭz
   failed: 315828133

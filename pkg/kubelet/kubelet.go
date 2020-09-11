@@ -84,6 +84,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/logs"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/kubernetes/pkg/kubelet/metrics/collectors"
+	"k8s.io/kubernetes/pkg/kubelet/migration"
 	"k8s.io/kubernetes/pkg/kubelet/network/dns"
 	"k8s.io/kubernetes/pkg/kubelet/nodelease"
 	oomwatcher "k8s.io/kubernetes/pkg/kubelet/oom"
@@ -607,6 +608,8 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	klet.criHandler = kubeDeps.criHandler
 	klet.runtimeService = kubeDeps.RemoteRuntimeService
 
+	klet.migrationManager = migration.NewManager(klet.kubeClient, klet.podManager, klet.preparePodMigration)
+
 	if utilfeature.DefaultFeatureGate.Enabled(features.RuntimeClass) && kubeDeps.KubeClient != nil {
 		klet.runtimeClassManager = runtimeclass.NewManager(kubeDeps.KubeClient)
 	}
@@ -632,6 +635,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 		kubeDeps.ContainerManager.InternalContainerLifecycle(),
 		kubeDeps.dockerLegacyService,
 		klet.runtimeClassManager,
+		klet.migrationManager,
 	)
 	if err != nil {
 		return nil, err
@@ -975,6 +979,9 @@ type Kubelet struct {
 	// TODO(CD): try to make this available without holding a reference in this
 	//           struct. For example, by adding a getter to generic runtime.
 	runtimeService internalapi.RuntimeService
+
+	// migrationManager takes care of migrating pods
+	migrationManager migration.Manager
 
 	// reasonCache caches the failure reason of the last creation of all containers, which is
 	// used for generating ContainerStatus.
@@ -1433,6 +1440,20 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 			utilruntime.HandleError(err)
 			return err
 		}
+		return nil
+	}
+
+	// if we want to migrate the pod, we can finish early, so do it now.
+	if updateType == kubetypes.SyncPodMigrate {
+		klog.V(2).Info("klet.syncPod")
+		mg, _ := kl.migrationManager.FindMigrationForPod(pod)
+		kl.containerRuntime.PrepareMigratePod(pod, podStatus, mg.Options())
+
+		// block the sync loop of the pod until the migration is finished.
+		mg.WaitUntilFinished()
+
+		// TODO(schrej): At some point we need to trigger deletion of the old pod. Here?
+		// This needs to be done quickly to avoid the containers getting restarted.
 		return nil
 	}
 
@@ -2084,6 +2105,12 @@ func (kl *Kubelet) HandlePodSyncs(pods []*v1.Pod) {
 	}
 }
 
+func (kl *Kubelet) preparePodMigration(pod *v1.Pod) {
+	start := kl.clock.Now()
+	mirrorPod, _ := kl.podManager.GetMirrorPodByPod(pod)
+	kl.dispatchWork(pod, kubetypes.SyncPodMigrate, mirrorPod, start)
+}
+
 // LatestLoopEntryTime returns the last time in the sync loop monitor.
 func (kl *Kubelet) LatestLoopEntryTime() time.Time {
 	val := kl.syncLoopMonitor.Load()
@@ -2154,7 +2181,7 @@ func (kl *Kubelet) ResyncInterval() time.Duration {
 
 // ListenAndServe runs the kubelet HTTP server.
 func (kl *Kubelet) ListenAndServe(address net.IP, port uint, tlsOptions *server.TLSOptions, auth server.AuthInterface, enableCAdvisorJSONEndpoints, enableDebuggingHandlers, enableContentionProfiling bool) {
-	server.ListenAndServeKubeletServer(kl, kl.resourceAnalyzer, address, port, tlsOptions, auth, enableCAdvisorJSONEndpoints, enableDebuggingHandlers, enableContentionProfiling, kl.redirectContainerStreaming, kl.criHandler)
+	server.ListenAndServeKubeletServer(kl, kl.resourceAnalyzer, address, port, tlsOptions, auth, enableCAdvisorJSONEndpoints, enableDebuggingHandlers, enableContentionProfiling, kl.redirectContainerStreaming, kl.criHandler, kl.migrationManager)
 }
 
 // ListenAndServeReadOnly runs the kubelet HTTP server in read-only mode.

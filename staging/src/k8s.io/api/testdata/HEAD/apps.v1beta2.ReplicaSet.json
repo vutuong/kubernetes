@@ -1379,7 +1379,8 @@
             }
           }
         ],
-        "setHostnameAsFQDN": false
+        "setHostnameAsFQDN": false,
+        "clonePod": "434"
       }
     }
   },
@@ -1394,8 +1395,8 @@
         "type": "×軓鼐嵱宯ÙQ阉(闒ƈƳ萎Ŋ",
         "status": "站畦f黹ʩ鹸ɷLȋ",
         "lastTransitionTime": "2376-03-18T02:40:44Z",
-        "reason": "434",
-        "message": "435"
+        "reason": "435",
+        "message": "436"
       }
     ]
   }

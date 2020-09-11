@@ -1376,7 +1376,8 @@
             }
           }
         ],
-        "setHostnameAsFQDN": false
+        "setHostnameAsFQDN": false,
+        "clonePod": "430"
       }
     },
     "ttlSecondsAfterFinished": -95236670
@@ -1388,8 +1389,8 @@
         "status": "试揯遐e4'ď曕椐敛n",
         "lastProbeTime": "2740-10-14T09:28:06Z",
         "lastTransitionTime": "2133-04-18T01:37:37Z",
-        "reason": "430",
-        "message": "431"
+        "reason": "431",
+        "message": "432"
       }
     ],
     "active": -68737405,

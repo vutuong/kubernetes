@@ -1372,7 +1372,8 @@
             }
           }
         ],
-        "setHostnameAsFQDN": false
+        "setHostnameAsFQDN": false,
+        "clonePod": "426"
       }
     },
     "strategy": {
@@ -1402,8 +1403,8 @@
         "status": "",
         "lastUpdateTime": "2042-08-25T05:10:04Z",
         "lastTransitionTime": "2097-04-15T07:29:40Z",
-        "reason": "426",
-        "message": "427"
+        "reason": "427",
+        "message": "428"
       }
     ],
     "collisionCount": -2071091268

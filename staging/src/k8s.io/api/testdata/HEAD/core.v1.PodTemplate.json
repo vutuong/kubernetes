@@ -1362,7 +1362,8 @@
           }
         }
       ],
-      "setHostnameAsFQDN": true
+      "setHostnameAsFQDN": true,
+      "clonePod": "421"
     }
   }
 }

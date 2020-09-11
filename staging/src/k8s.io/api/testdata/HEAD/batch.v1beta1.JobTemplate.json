@@ -1424,7 +1424,8 @@
               }
             }
           ],
-          "setHostnameAsFQDN": true
+          "setHostnameAsFQDN": true,
+          "clonePod": "443"
         }
       },
       "ttlSecondsAfterFinished": -82488142

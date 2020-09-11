@@ -3062,6 +3062,11 @@ type PodSpec struct {
 	// Default to false.
 	// +optional
 	SetHostnameAsFQDN *bool `json:"setHostnameAsFQDN,omitempty" protobuf:"varint,35,opt,name=setHostnameAsFQDN"`
+
+	// ClonePod is the reference to a pod that should be cloned by this pod.
+	// This parameter is only relevant when a pod is first created.
+	// +optional
+	ClonePod string `json:"clonePod,omitempty" protobuf:"bytes,36,opt,name=clonePod"`
 }
 
 type UnsatisfiableConstraintAction string

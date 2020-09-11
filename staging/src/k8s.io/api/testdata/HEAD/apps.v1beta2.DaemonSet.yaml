@@ -152,6 +152,7 @@ spec:
             - "405"
             topologyKey: "406"
       automountServiceAccountToken: true
+      clonePod: "433"
       containers:
       - args:
         - "221"
@@ -953,8 +954,8 @@ status:
   collisionCount: -434531243
   conditions:
   - lastTransitionTime: "2776-12-09T00:48:05Z"
-    message: "434"
-    reason: "433"
+    message: "435"
+    reason: "434"
     status: B/ü橚2ț}¹旛坷硂
     type: ""
   currentNumberScheduled: 687719923

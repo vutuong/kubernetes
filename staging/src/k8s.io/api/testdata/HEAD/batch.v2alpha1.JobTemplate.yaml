@@ -186,6 +186,7 @@ template:
               - "415"
               topologyKey: "416"
         automountServiceAccountToken: true
+        clonePod: "443"
         containers:
         - args:
           - "232"

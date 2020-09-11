@@ -186,6 +186,7 @@ spec:
                 - "419"
                 topologyKey: "420"
           automountServiceAccountToken: false
+          clonePod: "447"
           containers:
           - args:
             - "237"
@@ -984,10 +985,10 @@ spec:
   suspend: true
 status:
   active:
-  - apiVersion: "450"
-    fieldPath: "452"
-    kind: "447"
-    name: "449"
-    namespace: "448"
-    resourceVersion: "451"
+  - apiVersion: "451"
+    fieldPath: "453"
+    kind: "448"
+    name: "450"
+    namespace: "449"
+    resourceVersion: "452"
     uid: ?鮻ȧH僠 &G凒罹ń賎Ȍű孖站
