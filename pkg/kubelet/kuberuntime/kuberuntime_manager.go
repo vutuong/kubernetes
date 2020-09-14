@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	goruntime "runtime"
 	"sync"
 	"time"
@@ -909,37 +908,17 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 
 func (m *kubeGenericRuntimeManager) PrepareMigratePod(pod *v1.Pod, podStatus *kubecontainer.PodStatus, options *kubecontainer.MigratePodOptions) {
 	klog.V(2).Info("Preparing Pod %v for migration. %v", pod.Name, options)
+	wg := sync.WaitGroup{}
+	wg.Add(len(pod.Spec.Containers))
 	for _, container := range pod.Spec.Containers {
-		ok := false
-	ContainsLoop:
 		for _, c := range options.Containers {
 			if container.Name == c {
-				ok = true
-				break ContainsLoop
+				go m.prepareMigrateContainer(&container, podStatus, options)
+				break
 			}
 		}
-		if !ok {
-			continue
-		}
-
-		klog.V(2).Infof("Checkpointing container %v.", container.Name)
-
-		containerStatus := podStatus.FindContainerStatusByName(container.Name)
-
-		// If a container isn't running, it can't be live-migrated.
-		if containerStatus == nil || containerStatus.State != kubecontainer.ContainerStateRunning {
-			continue
-		}
-		checkpointName := fmt.Sprintf("%s_%s", pod.Name, container.Name)
-		m.runtimeService.CheckpointContainer(containerStatus.ID.ID, &runtimeapi.CheckpointContainerOptions{
-			CheckpointPath: "/var/lib/kubelet/migration/" + checkpointName,
-		})
-
-		// TODO(schrej): support mutliple containers at once
-		options.CheckpointPath <- path.Join("/var/lib/kubelet/migration", checkpointName)
-		return
 	}
-	options.CheckpointPath <- ""
+	options.Done <- struct{}{}
 	return
 }
 

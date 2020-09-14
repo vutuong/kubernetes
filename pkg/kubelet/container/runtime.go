@@ -655,7 +655,8 @@ func (s SortContainerStatusesByCreationTime) Less(i, j int) bool {
 type MigratePodOptions struct {
 	KeepRunning    bool
 	Containers     []string
-	CheckpointPath chan<- string
+	CheckpointsDir string
+	Done           chan<- struct{}
 	Unblock        <-chan struct{}
 }
 

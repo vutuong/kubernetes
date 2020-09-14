@@ -2,6 +2,7 @@ package migration
 
 import (
 	"net/http"
+	"path"
 
 	"github.com/emicklei/go-restful"
 	v1 "k8s.io/api/core/v1"
@@ -23,8 +24,9 @@ type Migration interface {
 	WaitUntilFinished()
 }
 
-func NewManager(kubeClient clientset.Interface, podManager kubepod.Manager, prepareMigartionFn prepareMigrationFunc) Manager {
+func NewManager(kubeClient clientset.Interface, podManager kubepod.Manager, prepareMigartionFn prepareMigrationFunc, rootPath string) Manager {
 	return &manager{
+		migrationPath:      path.Join(rootPath, "migration"),
 		kubeClient:         kubeClient,
 		podManager:         podManager,
 		prepareMigrationFn: prepareMigartionFn,
@@ -35,6 +37,8 @@ func NewManager(kubeClient clientset.Interface, podManager kubepod.Manager, prep
 type prepareMigrationFunc func(*v1.Pod)
 
 type manager struct {
+	migrationPath string
+
 	kubeClient         clientset.Interface
 	podManager         kubepod.Manager
 	prepareMigrationFn prepareMigrationFunc
@@ -45,9 +49,10 @@ type manager struct {
 var _ Manager = &manager{}
 
 type migration struct {
+	path       string
 	containers []string
 	unblock    chan struct{}
-	created    chan string
+	done       chan struct{}
 }
 
 type Result struct {
@@ -82,8 +87,14 @@ func (m *manager) HandleMigrationRequest(req *restful.Request, res *restful.Resp
 	klog.V(2).Infof("Starting migration of Pod %v", pod.Name)
 	m.prepareMigrationFn(pod)
 
-	r := Result{Containers: map[string]ResultContainer{params.containerName: {CheckpointPath: <-mig.created}}}
-	res.WriteAsJson(r)
+	<-mig.done
+	r := Result{Containers: map[string]ResultContainer{}}
+	for _, c := range mig.containers {
+		r.Containers[c] = ResultContainer{CheckpointPath: path.Join(mig.path, c)}
+	}
+	if err := res.WriteAsJson(r); err != nil {
+		klog.Error("failed to encode migration result.", err)
+	}
 	res.WriteHeader(http.StatusOK)
 	mig.unblock <- struct{}{}
 }
@@ -95,8 +106,9 @@ func (m *manager) FindMigrationForPod(pod *v1.Pod) (Migration, bool) {
 
 func (m *manager) newMigration(pod *v1.Pod) *migration {
 	mig := &migration{
+		path:    path.Join(m.migrationPath, pod.Name),
 		unblock: make(chan struct{}),
-		created: make(chan string),
+		done:    make(chan struct{}),
 	}
 	m.migrations[pod.UID] = mig
 	return mig
@@ -105,8 +117,9 @@ func (m *manager) newMigration(pod *v1.Pod) *migration {
 func (mg *migration) Options() *container.MigratePodOptions {
 	return &container.MigratePodOptions{
 		KeepRunning:    false,
-		CheckpointPath: mg.created,
+		CheckpointsDir: mg.path,
 		Unblock:        mg.unblock,
+		Done:           mg.done,
 		Containers:     mg.containers,
 	}
 }

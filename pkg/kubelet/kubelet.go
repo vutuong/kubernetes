@@ -608,7 +608,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	klet.criHandler = kubeDeps.criHandler
 	klet.runtimeService = kubeDeps.RemoteRuntimeService
 
-	klet.migrationManager = migration.NewManager(klet.kubeClient, klet.podManager, klet.preparePodMigration)
+	klet.migrationManager = migration.NewManager(klet.kubeClient, klet.podManager, klet.preparePodMigration, klet.rootDirectory)
 
 	if utilfeature.DefaultFeatureGate.Enabled(features.RuntimeClass) && kubeDeps.KubeClient != nil {
 		klet.runtimeClassManager = runtimeclass.NewManager(kubeDeps.KubeClient)
