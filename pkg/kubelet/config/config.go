@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"sync"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
@@ -474,8 +474,16 @@ func checkAndUpdatePod(existing, ref *v1.Pod) (needUpdate, needReconcile, needGr
 	existing.Status = ref.Status
 	updateAnnotations(existing, ref)
 
+	hasMigrationFinalizer := false
+	for _, f := range ref.Finalizers {
+		if f == "podmig.schrej.net/Migrate" {
+			hasMigrationFinalizer = true
+			break
+		}
+	}
+
 	// 2. this is an graceful delete
-	if ref.DeletionTimestamp != nil {
+	if ref.DeletionTimestamp != nil && !hasMigrationFinalizer {
 		needGracefulDelete = true
 	} else {
 		// 3. this is an update

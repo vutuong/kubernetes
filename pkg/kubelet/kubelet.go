@@ -1520,8 +1520,16 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 	// Update status in the status manager
 	kl.statusManager.SetPodStatus(pod, apiPodStatus)
 
+	hasMigrationFinalizer := false
+	for _, f := range pod.Finalizers {
+		if f == "podmig.schrej.net/Migrate" {
+			hasMigrationFinalizer = true
+			break
+		}
+	}
+
 	// Kill pod if it should not be running
-	if !runnable.Admit || pod.DeletionTimestamp != nil || apiPodStatus.Phase == v1.PodFailed {
+	if !runnable.Admit || (pod.DeletionTimestamp != nil && !hasMigrationFinalizer) || apiPodStatus.Phase == v1.PodFailed {
 		var syncErr error
 		if err := kl.killPod(pod, nil, podStatus, nil); err != nil {
 			kl.recorder.Eventf(pod, v1.EventTypeWarning, events.FailedToKillPod, "error killing pod: %v", err)
