@@ -5,16 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
-
-// TODO(schrej): Maybe inject this for decoupling?
-const migrationEndpoint = ""
 
 func (m *manager) TriggerPodMigration(pod *v1.Pod) (Result, error) {
 	client, err := getHTTPClient()
@@ -26,8 +25,13 @@ func (m *manager) TriggerPodMigration(pod *v1.Pod) (Result, error) {
 		return Result{}, err
 	}
 
+	containers := []string{}
+	for _, c := range clonePod.Spec.Containers {
+		containers = append(containers, c.Name)
+	}
+
 	// TODO(schrej): fetch port from api
-	url := fmt.Sprintf("https://%s:10250/migrate/%s/%s/%s", clonePod.Status.HostIP, clonePod.Namespace, clonePod.Name, clonePod.Spec.Containers[0].Name)
+	url := fmt.Sprintf("https://%s:10250/migrate/%s?containers=%s", clonePod.Status.HostIP, clonePod.GetUID(), strings.Join(containers, ","))
 	response, err := client.Get(url)
 	if err != nil {
 		return Result{}, err

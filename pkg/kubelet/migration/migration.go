@@ -3,6 +3,7 @@ package migration
 import (
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/emicklei/go-restful"
 	v1 "k8s.io/api/core/v1"
@@ -67,11 +68,12 @@ var _ Migration = &migration{}
 
 func (m *manager) HandleMigrationRequest(req *restful.Request, res *restful.Response) {
 	params := getMigrationRequestParams(req)
-	klog.V(2).Infof("POST Migrate - %v %v %v", params.podNamespace, params.podID, params.containerName)
+	klog.V(2).Infof("POST Migrate - %v %v", params.podUID, params.containerNames)
 
 	var pod *v1.Pod
 	var ok bool
-	if pod, ok = m.podManager.GetPodByName(params.podNamespace, params.podID); !ok {
+
+	if pod, ok = m.podManager.GetPodByUID(types.UID(params.podUID)); !ok {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -82,7 +84,7 @@ func (m *manager) HandleMigrationRequest(req *restful.Request, res *restful.Resp
 	}
 
 	mig := m.newMigration(pod)
-	mig.containers = []string{params.containerName}
+	mig.containers = params.containerNames
 
 	klog.V(2).Infof("Starting migration of Pod %v", pod.Name)
 	m.prepareMigrationFn(pod)
@@ -110,8 +112,17 @@ func (m *manager) newMigration(pod *v1.Pod) *migration {
 		unblock: make(chan struct{}),
 		done:    make(chan struct{}),
 	}
-	m.migrations[pod.UID] = mig
+	m.migrations[pod.GetUID()] = mig
 	return mig
+}
+
+func (m *manager) removeMigration(pod *v1.Pod) {
+	mig, ok := m.migrations[pod.GetUID()]
+	if !ok {
+		return
+	}
+	mig.done <- struct{}{}
+	delete(m.migrations, pod.GetUID())
 }
 
 func (mg *migration) Options() *container.MigratePodOptions {
@@ -129,15 +140,13 @@ func (mg *migration) WaitUntilFinished() {
 }
 
 type migrationRequestParams struct {
-	podNamespace  string
-	podID         string
-	containerName string
+	podUID         string
+	containerNames []string
 }
 
 func getMigrationRequestParams(req *restful.Request) migrationRequestParams {
 	return migrationRequestParams{
-		podNamespace:  req.PathParameter("podNamespace"),
-		podID:         req.PathParameter("podID"),
-		containerName: req.PathParameter("containerName"),
+		podUID:         req.PathParameter("podUID"),
+		containerNames: strings.Split(req.QueryParameter("containers"), ","),
 	}
 }

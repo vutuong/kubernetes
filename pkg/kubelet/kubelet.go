@@ -1445,13 +1445,14 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 
 	// if we want to migrate the pod, we can finish early, so do it now.
 	if updateType == kubetypes.SyncPodMigrate {
-		klog.V(2).Info("klet.syncPod")
+		klog.V(2).Info("Preparing Pod Migration")
 		mg, _ := kl.migrationManager.FindMigrationForPod(pod)
 		kl.containerRuntime.PrepareMigratePod(pod, podStatus, mg.Options())
 
 		// block the sync loop of the pod until the migration is finished.
 		mg.WaitUntilFinished()
 
+		kl.statusManager.TerminatePod(pod)
 		// TODO(schrej): At some point we need to trigger deletion of the old pod. Here?
 		// This needs to be done quickly to avoid the containers getting restarted.
 		return nil
@@ -2105,6 +2106,7 @@ func (kl *Kubelet) HandlePodSyncs(pods []*v1.Pod) {
 	}
 }
 
+// preparePodMigration prepares a Pod to be migrated.
 func (kl *Kubelet) preparePodMigration(pod *v1.Pod) {
 	start := kl.clock.Now()
 	mirrorPod, _ := kl.podManager.GetMirrorPodByPod(pod)

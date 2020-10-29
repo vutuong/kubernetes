@@ -335,7 +335,7 @@ func (s *Server) InstallDefaultHandlers(enableCAdvisorJSONEndpoints bool, migrat
 	s.addMetricsBucketMatcher("migration")
 	ws = &restful.WebService{}
 	ws.Path("/migrate").Produces(restful.MIME_JSON)
-	ws.Route(ws.GET("/{podNamespace}/{podID}/{containerName}").
+	ws.Route(ws.GET("/{podUID}").
 		To(migrationManager.HandleMigrationRequest).
 		Operation("migratePod"))
 	s.restfulCont.Add(ws)
