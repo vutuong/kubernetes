@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/flowcontrol"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"k8s.io/kubernetes/pkg/kubelet/container"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/volume"
 )
@@ -238,6 +239,10 @@ func (f *FakeRuntime) SyncPod(pod *v1.Pod, _ *kubecontainer.PodStatus, _ []v1.Se
 		result.Fail(f.Err)
 	}
 	return
+}
+
+func (f *FakeRuntime) PrepareMigratePod(pod *v1.Pod, podStatus *kubecontainer.PodStatus, migrationOptions *container.MigratePodOptions) {
+	// TODO(schrej): Implement
 }
 
 func (f *FakeRuntime) KillPod(pod *v1.Pod, runningPod kubecontainer.Pod, gracePeriodOverride *int64) error {

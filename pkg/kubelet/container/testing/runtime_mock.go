@@ -22,11 +22,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/mock"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/flowcontrol"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"k8s.io/kubernetes/pkg/kubelet/container"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/volume"
 )
@@ -75,6 +76,9 @@ func (r *Mock) GetPods(all bool) ([]*kubecontainer.Pod, error) {
 func (r *Mock) SyncPod(pod *v1.Pod, status *kubecontainer.PodStatus, secrets []v1.Secret, backOff *flowcontrol.Backoff) kubecontainer.PodSyncResult {
 	args := r.Called(pod, status, secrets, backOff)
 	return args.Get(0).(kubecontainer.PodSyncResult)
+}
+
+func (r *Mock) PrepareMigratePod(pod *v1.Pod, status *kubecontainer.PodStatus, migrationOptions *container.MigratePodOptions) {
 }
 
 func (r *Mock) KillPod(pod *v1.Pod, runningPod kubecontainer.Pod, gracePeriodOverride *int64) error {
