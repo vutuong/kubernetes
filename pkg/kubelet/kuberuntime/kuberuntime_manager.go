@@ -909,15 +909,19 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 func (m *kubeGenericRuntimeManager) PrepareMigratePod(pod *v1.Pod, podStatus *kubecontainer.PodStatus, options *kubecontainer.MigratePodOptions) {
 	klog.V(2).Info("Preparing Pod %v for migration. %v", pod.Name, options)
 	wg := sync.WaitGroup{}
-	wg.Add(len(pod.Spec.Containers))
-	for _, container := range pod.Spec.Containers {
-		for _, c := range options.Containers {
+	wg.Add(len(options.Containers))
+	for _, c := range options.Containers {
+		for _, container := range pod.Spec.Containers {
 			if container.Name == c {
-				go m.prepareMigrateContainer(&container, podStatus, options)
+				go func() {
+					m.prepareMigrateContainer(&container, podStatus, options)
+					wg.Done()
+				}()
 				break
 			}
 		}
 	}
+	wg.Wait()
 	options.Done <- struct{}{}
 	return
 }
