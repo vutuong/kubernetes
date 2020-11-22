@@ -472,6 +472,7 @@ func checkAndUpdatePod(existing, ref *v1.Pod) (needUpdate, needReconcile, needGr
 	existing.DeletionTimestamp = ref.DeletionTimestamp
 	existing.DeletionGracePeriodSeconds = ref.DeletionGracePeriodSeconds
 	existing.Status = ref.Status
+	existing.Finalizers = ref.Finalizers
 	updateAnnotations(existing, ref)
 
 	hasMigrationFinalizer := false
