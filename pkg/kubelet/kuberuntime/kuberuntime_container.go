@@ -308,8 +308,14 @@ func (m *kubeGenericRuntimeManager) prepareMigrateContainer(container *v1.Contai
 		return nil
 	}
 
+	leaveRunning := false
+	if options.KeepRunning == true {
+		leaveRunning = true
+	}
+
 	checkpointPath := path.Join(options.CheckpointsDir, container.Name)
 	return m.runtimeService.CheckpointContainer(containerStatus.ID.ID, &runtimeapi.CheckpointContainerOptions{
+		LeaveRunning:   leaveRunning,
 		CheckpointPath: checkpointPath,
 	})
 }

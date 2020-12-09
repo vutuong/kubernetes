@@ -1496,6 +1496,25 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 	if !ok || existingStatus.Phase == v1.PodPending && apiPodStatus.Phase == v1.PodRunning &&
 		!firstSeenTime.IsZero() {
 		metrics.PodStartDuration.Observe(metrics.SinceInSeconds(firstSeenTime))
+		if apiPodStatus.Phase == v1.PodRunning {
+			if pod.ObjectMeta.Annotations["snapshotPolicy"] != "" {
+				klog.V(2).Info("Checkpoint the firstime running pod to use for other scale without booting from scratch: %+v", pod.Name)
+				containers := []string{}
+				for _, c := range pod.Spec.Containers {
+					containers = append(containers, c.Name)
+				}
+				migrationPath := path.Join(pod.ObjectMeta.Annotations["snapshotPath"], pod.Name)
+				klog.V(2).Info(containers)
+				klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPolicy"])
+				klog.V(2).Info(migrationPath)
+				options := &kubecontainer.MigratePodOptions{
+					KeepRunning:    true,
+					CheckpointsDir: migrationPath,
+					Containers:     containers,
+				}
+				kl.containerRuntime.PrepareMigratePod(pod, podStatus, options)
+			}
+		}
 	}
 
 	runnable := kl.canRunPod(pod)
