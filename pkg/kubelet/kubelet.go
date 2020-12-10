@@ -1498,21 +1498,24 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 		metrics.PodStartDuration.Observe(metrics.SinceInSeconds(firstSeenTime))
 		if apiPodStatus.Phase == v1.PodRunning {
 			if pod.ObjectMeta.Annotations["snapshotPolicy"] != "" {
-				klog.V(2).Info("Checkpoint the firstime running pod to use for other scale without booting from scratch: %+v", pod.Name)
-				containers := []string{}
-				for _, c := range pod.Spec.Containers {
-					containers = append(containers, c.Name)
-				}
 				migrationPath := path.Join(pod.ObjectMeta.Annotations["snapshotPath"], pod.Name)
-				klog.V(2).Info(containers)
-				klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPolicy"])
-				klog.V(2).Info(migrationPath)
-				options := &kubecontainer.MigratePodOptions{
-					KeepRunning:    true,
-					CheckpointsDir: migrationPath,
-					Containers:     containers,
+				if _, err := os.Stat(migrationPath); err != nil {
+					klog.V(2).Info("Checkpoint the firstime running pod to use for other scale without booting from scratch: %+v", pod.Name)
+					containers := []string{}
+					for _, c := range pod.Spec.Containers {
+						containers = append(containers, c.Name)
+					}
+					klog.V(2).Info(containers)
+					klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPolicy"])
+					klog.V(2).Info(migrationPath)
+					options := &kubecontainer.MigratePodOptions{
+						KeepRunning:    true,
+						CheckpointsDir: migrationPath,
+						Containers:     containers,
+					}
+					kl.containerRuntime.PrepareMigratePod(pod, podStatus, options)
 				}
-				kl.containerRuntime.PrepareMigratePod(pod, podStatus, options)
+
 			}
 		}
 	}
