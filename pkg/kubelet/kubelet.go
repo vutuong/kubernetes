@@ -1498,7 +1498,8 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 		metrics.PodStartDuration.Observe(metrics.SinceInSeconds(firstSeenTime))
 		if apiPodStatus.Phase == v1.PodRunning {
 			if pod.ObjectMeta.Annotations["snapshotPolicy"] != "" {
-				migrationPath := path.Join(pod.ObjectMeta.Annotations["snapshotPath"], pod.Name)
+				// migrationPath := path.Join(pod.ObjectMeta.Annotations["snapshotPath"], pod.Name)
+				migrationPath := pod.ObjectMeta.Annotations["snapshotPath"]
 				if _, err := os.Stat(migrationPath); err != nil {
 					klog.V(2).Info("Checkpoint the firstime running pod to use for other scale without booting from scratch: %+v", pod.Name)
 					containers := []string{}

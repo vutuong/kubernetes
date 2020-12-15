@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	goruntime "runtime"
 	"sync"
 	"time"
@@ -838,7 +839,8 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 	// TODO(schrej): how to handle failure?
 	// This contains most parts from the regular start() function
 	klog.Info("Should we migrate?", pod.Status.Phase, pod.Spec.ClonePod, len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers))
-	if pod.Spec.ClonePod != "" && len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers) {
+	klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPath"])
+	if (pod.Spec.ClonePod != "" || pod.ObjectMeta.Annotations["snapshotPath"] != "") && len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers) {
 		containerIDs := make([]string, len(podContainerChanges.ContainersToStart))
 		containerConfigs := make([]*runtimeapi.ContainerConfig, len(podContainerChanges.ContainersToStart))
 		startContainerResults := make([]*kubecontainer.SyncResult, len(podContainerChanges.ContainersToStart))
@@ -869,24 +871,39 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 
 		}
 
-		// Prepare the migration on the source node
-		migResult, err := m.migrationManager.TriggerPodMigration(pod)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("failed to migrate pod %s: %v", pod.Name, err))
+		var migResult migration.Result
+		var checkPointPath string
+		if pod.Spec.ClonePod != "" {
+			// Prepare the migration on the source node
+			var errMig error
+			migResult, errMig = m.migrationManager.TriggerPodMigration(pod)
+			if errMig != nil {
+				utilruntime.HandleError(fmt.Errorf("failed to migrate pod %s: %v", pod.Name, err))
+			}
 		}
-
 		// Start the containers
 		wg := sync.WaitGroup{}
 		for _, idx := range podContainerChanges.ContainersToStart {
 			wg.Add(1)
 			go func(idx int) {
 				container := &pod.Spec.Containers[idx]
-				migrationContainer, ok := migResult.Containers[container.Name]
-				if !ok {
-					utilruntime.HandleError(fmt.Errorf("container %s missing from migration result while migrating pod %s", container.Name, pod.Name))
-					return
+
+				if pod.Spec.ClonePod != "" {
+					migrationContainer, ok := migResult.Containers[container.Name]
+					if !ok {
+						utilruntime.HandleError(fmt.Errorf("container %s missing from migration result while migrating pod %s", container.Name, pod.Name))
+						return
+					}
+					checkPointPath = migrationContainer.CheckpointPath
 				}
-				if msg, err := m.restoreContainer(podSandboxConfig, containerStartSpec(&pod.Spec.Containers[idx]), pod, containerIDs[idx], containerConfigs[idx], migrationContainer.CheckpointPath); err != nil {
+				if pod.ObjectMeta.Annotations["snapshotPath"] != "" {
+					checkPointPath = path.Join(pod.ObjectMeta.Annotations["snapshotPath"], container.Name)
+
+				}
+				klog.V(2).Info("start container from chechpoint", checkPointPath)
+				klog.V(2).Info("start container from chechpoint", pod.Name)
+
+				if msg, err := m.restoreContainer(podSandboxConfig, containerStartSpec(&pod.Spec.Containers[idx]), pod, containerIDs[idx], containerConfigs[idx], checkPointPath); err != nil {
 					startContainerResults[idx].Fail(err, msg)
 					utilruntime.HandleError(fmt.Errorf("container start failed: %v: %s", err, msg))
 					return
