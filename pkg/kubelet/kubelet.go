@@ -1496,31 +1496,30 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 	if !ok || existingStatus.Phase == v1.PodPending && apiPodStatus.Phase == v1.PodRunning &&
 		!firstSeenTime.IsZero() {
 		metrics.PodStartDuration.Observe(metrics.SinceInSeconds(firstSeenTime))
-		if apiPodStatus.Phase == v1.PodRunning {
-			if pod.ObjectMeta.Annotations["snapshotPolicy"] != "" {
-				// migrationPath := path.Join(pod.ObjectMeta.Annotations["snapshotPath"], pod.Name)
-				migrationPath := pod.ObjectMeta.Annotations["snapshotPath"]
-				if _, err := os.Stat(migrationPath); err != nil {
-					klog.V(2).Info("Checkpoint the firstime running pod to use for other scale without booting from scratch: %+v", pod.Name)
-					containers := []string{}
-					for _, c := range pod.Spec.Containers {
-						containers = append(containers, c.Name)
-					}
-					klog.V(2).Info(containers)
-					klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPolicy"])
-					klog.V(2).Info(migrationPath)
-					options := &kubecontainer.MigratePodOptions{
-						KeepRunning:    true,
-						CheckpointsDir: migrationPath,
-						Containers:     containers,
-					}
-					kl.containerRuntime.PrepareMigratePod(pod, podStatus, options)
+	}
+	if apiPodStatus.Phase == v1.PodRunning {
+		if pod.ObjectMeta.Annotations["snapshotPolicy"] == "checkpoint" {
+			migrationPath := path.Join(pod.ObjectMeta.Annotations["snapshotPath"], strings.Split(pod.Name, "-")[0])
+			// migrationPath := pod.ObjectMeta.Annotations["snapshotPath"]
+			if _, err := os.Stat(migrationPath); err != nil {
+				klog.Info("Checkpoint the firstime running pod to use for other scale without booting from scratch: %+v", pod.Name)
+				containers := []string{}
+				for _, c := range pod.Spec.Containers {
+					containers = append(containers, c.Name)
 				}
-
+				klog.V(2).Info(containers)
+				// pod.ObjectMeta.Annotations["snapshotPolicy"] = "No-action"
+				klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPolicy"])
+				klog.V(2).Info(migrationPath)
+				options := &kubecontainer.MigratePodOptions{
+					KeepRunning:    true,
+					CheckpointsDir: migrationPath,
+					Containers:     containers,
+				}
+				kl.containerRuntime.PrepareMigratePod(pod, podStatus, options)
 			}
 		}
 	}
-
 	runnable := kl.canRunPod(pod)
 	if !runnable.Admit {
 		// Pod is not runnable; update the Pod and Container statuses to why.

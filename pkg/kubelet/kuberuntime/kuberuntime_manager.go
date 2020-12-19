@@ -840,7 +840,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 	// This contains most parts from the regular start() function
 	klog.Info("Should we migrate?", pod.Status.Phase, pod.Spec.ClonePod, len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers))
 	klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPath"])
-	if (pod.Spec.ClonePod != "" || pod.ObjectMeta.Annotations["snapshotPath"] != "") && len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers) {
+	if (pod.Spec.ClonePod != "" || (pod.ObjectMeta.Annotations["snapshotPath"] != "" && pod.ObjectMeta.Annotations["snapshotPath"] == "restore")) && len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers) {
 		containerIDs := make([]string, len(podContainerChanges.ContainersToStart))
 		containerConfigs := make([]*runtimeapi.ContainerConfig, len(podContainerChanges.ContainersToStart))
 		startContainerResults := make([]*kubecontainer.SyncResult, len(podContainerChanges.ContainersToStart))
