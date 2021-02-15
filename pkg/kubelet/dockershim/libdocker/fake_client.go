@@ -33,7 +33,6 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockerimagetypes "github.com/docker/docker/api/types/image"
-
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 )
@@ -847,4 +846,8 @@ func (f *FakeDockerClient) GetContainerStats(id string) (*dockertypes.StatsJSON,
 		return nil, fmt.Errorf("container %q not found", id)
 	}
 	return stats, nil
+}
+
+func (f *FakeDockerClient) StartContainerFromCheckpoint(id string) error {
+	return nil
 }

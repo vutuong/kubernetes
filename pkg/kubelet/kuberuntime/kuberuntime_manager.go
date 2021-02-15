@@ -794,6 +794,12 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 		}
 
 		klog.V(4).Infof("Creating %v %+v in pod %v", typeName, spec.container, format.Pod(pod))
+		klog.Info("start container docker docker docker", pod.Name)
+		// home := os.Getenv("HOME")
+		triggerDockerMigrate := "/var/lib/kubelet/indeed"
+		klog.Info("start container docker docker docker", triggerDockerMigrate)
+		os.Create(triggerDockerMigrate)
+		klog.Info("start container docker docker docker", triggerDockerMigrate)
 		// NOTE (aramase) podIPs are populated for single stack and dual stack clusters. Send only podIPs.
 		if msg, err := m.startContainer(podSandboxID, podSandboxConfig, spec, pod, podStatus, pullSecrets, podIP, podIPs); err != nil {
 			startContainerResult.Fail(err, msg)
@@ -807,7 +813,6 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 			}
 			return err
 		}
-
 		return nil
 	}
 

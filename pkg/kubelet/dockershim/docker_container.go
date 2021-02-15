@@ -266,8 +266,19 @@ func (ds *dockerService) removeContainerLogSymlink(containerID string) error {
 
 // StartContainer starts the container.
 func (ds *dockerService) StartContainer(ctx context.Context, r *runtimeapi.StartContainerRequest) (*runtimeapi.StartContainerResponse, error) {
+
+	// if _, Err := os.Stat("/home/ubuntu/checkpoint"); !os.IsNotExist(Err) {
+	// 	// path/to/whatever exists
+	// 	os.Create("/home/ubuntu/ack")
+	// 	dest := "/var/lib/docker/containers/" + r.ContainerId + "/checkpoints"
+	// 	cmd := exec.Command("mv", "/home/ubuntu/checkpoint/savedState", dest)
+	// 	cmd.Run()
+	// 	cmd.Wait()
+	// 	err = ds.client.StartContainerFromCheckpoint(r.ContainerId)
+	// } else {
 	err := ds.startContainer(ctx, r.ContainerId, "")
 	if err != nil {
+		os.Create("/var/lib/kubelet/fail")
 		return nil, err
 	}
 	return &runtimeapi.StartContainerResponse{}, nil

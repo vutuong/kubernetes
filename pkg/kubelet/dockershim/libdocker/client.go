@@ -49,6 +49,7 @@ type Interface interface {
 	InspectContainerWithSize(id string) (*dockertypes.ContainerJSON, error)
 	CreateContainer(dockertypes.ContainerCreateConfig) (*dockercontainer.ContainerCreateCreatedBody, error)
 	StartContainer(id, checkpoint string) error
+	StartContainerFromCheckpoint(id string) error
 	StopContainer(id string, timeout time.Duration) error
 	CheckpointContainer(id string, opts dockertypes.CheckpointCreateOptions) error
 	UpdateContainerResources(id string, updateConfig dockercontainer.UpdateConfig) error

@@ -26,6 +26,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
 	"regexp"
 	"sync"
 	"time"
@@ -158,9 +161,31 @@ func (d *kubeDockerClient) CreateContainer(opts dockertypes.ContainerCreateConfi
 func (d *kubeDockerClient) StartContainer(id, checkpointId string) error {
 	ctx, cancel := d.getTimeoutContext()
 	defer cancel()
-	err := d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{
-		CheckpointID: checkpointId,
-	})
+	var err error
+	trigger := "/var/lib/kubelet"
+	checkpointPath := path.Join(trigger, "checkpoint/savedState")
+	klog.Info("start container docker docker docker", checkpointPath)
+	if _, Err := os.Stat(checkpointPath); !os.IsNotExist(Err) {
+		indeed := path.Join(trigger, "indeed")
+		if _, Errr := os.Stat(indeed); !os.IsNotExist(Errr) {
+			dest := path.Join("/var/lib/docker/containers", id, "checkpoints")
+			klog.Info("start container docker docker docker", dest)
+			cmd := exec.Command("sudo", "chmod", "777", checkpointPath)
+			cmd.Run()
+			cmd = exec.Command("sudo", "chmod", "777", "/var/lib/docker/containers")
+			cmd.Run()
+			cmd = exec.Command("sudo", "chmod", "777", dest)
+			cmd.Run()
+			cmd = exec.Command("sudo", "mv", checkpointPath, dest)
+			cmd.Run()
+			err = d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{"savedState", ""})
+			os.Remove(indeed)
+		} else {
+			err = d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{})
+		}
+		return err
+	}
+	err = d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{CheckpointID: checkpointId})
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return ctxErr
 	}
@@ -686,4 +711,15 @@ func (e ImageNotFoundError) Error() string {
 func IsImageNotFoundError(err error) bool {
 	_, ok := err.(ImageNotFoundError)
 	return ok
+}
+
+func (d *kubeDockerClient) StartContainerFromCheckpoint(id string) error {
+	// ctx, cancel := d.getTimeoutContext()
+	// defer cancel()
+	ctx := context.Background()
+	err := d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{"savedState", ""})
+	// if ctxErr := contextError(ctx); ctxErr != nil {
+	// 	return ctxErr
+	// }
+	return err
 }
