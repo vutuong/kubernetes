@@ -164,12 +164,12 @@ func (d *kubeDockerClient) StartContainer(id, checkpointId string) error {
 	var err error
 	trigger := "/var/lib/kubelet"
 	checkpointPath := path.Join(trigger, "checkpoint/savedState")
-	klog.Info("start container docker docker docker", checkpointPath)
+	klog.Info("start container docker docker docker ", checkpointPath)
 	if _, Err := os.Stat(checkpointPath); !os.IsNotExist(Err) {
 		indeed := path.Join(trigger, "indeed")
 		if _, Errr := os.Stat(indeed); !os.IsNotExist(Errr) {
 			dest := path.Join("/var/lib/docker/containers", id, "checkpoints")
-			klog.Info("start container docker docker docker", dest)
+			klog.Info("start container docker id id : ", dest)
 			cmd := exec.Command("sudo", "chmod", "777", checkpointPath)
 			cmd.Run()
 			cmd = exec.Command("sudo", "chmod", "777", "/var/lib/docker/containers")
@@ -183,9 +183,10 @@ func (d *kubeDockerClient) StartContainer(id, checkpointId string) error {
 		} else {
 			err = d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{})
 		}
-		return err
+	} else {
+		// err = d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{CheckpointID: checkpointId})
+		err = d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{CheckpointID: checkpointId})
 	}
-	err = d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{CheckpointID: checkpointId})
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return ctxErr
 	}

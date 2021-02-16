@@ -298,6 +298,60 @@ func (m *kubeGenericRuntimeManager) restoreContainer(podSandboxConfig *runtimeap
 	return "", nil
 }
 
+// restoreContainer migrates and starts a container and returns a message indicates why it is failed on error.
+// It starts the container through the following steps:
+// * pull container snapshot
+// * restore the container
+// * run the post start lifecycle hooks (if applicable)
+func (m *kubeGenericRuntimeManager) restoreContainerDocker(podSandboxConfig *runtimeapi.PodSandboxConfig, spec *startSpec, pod *v1.Pod, containerID string, containerConfig *runtimeapi.ContainerConfig, checkpointPath string) (string, error) {
+	container := spec.container
+
+	// restore the container.
+	err := m.runtimeService.StartContainer(containerID)
+	if err != nil {
+		s, _ := grpcstatus.FromError(err)
+		m.recordContainerEvent(pod, container, containerID, v1.EventTypeWarning, events.FailedToStartContainer, "Error: %v", s.Message())
+		return s.Message(), kubecontainer.ErrRunContainer
+	}
+	m.recordContainerEvent(pod, container, containerID, v1.EventTypeNormal, events.StartedContainer, fmt.Sprintf("Restored container %s from checkpoint %s", container.Name, checkpointPath))
+
+	// Symlink container logs to the legacy container log location for cluster logging
+	// support.
+	// TODO(random-liu): Remove this after cluster logging supports CRI container log path.
+	containerMeta := containerConfig.GetMetadata()
+	sandboxMeta := podSandboxConfig.GetMetadata()
+	legacySymlink := legacyLogSymlink(containerID, containerMeta.Name, sandboxMeta.Name,
+		sandboxMeta.Namespace)
+	containerLog := filepath.Join(podSandboxConfig.LogDirectory, containerConfig.LogPath)
+	// only create legacy symlink if containerLog path exists (or the error is not IsNotExist).
+	// Because if containerLog path does not exist, only dangling legacySymlink is created.
+	// This dangling legacySymlink is later removed by container gc, so it does not make sense
+	// to create it in the first place. it happens when journald logging driver is used with docker.
+	if _, err := m.osInterface.Stat(containerLog); !os.IsNotExist(err) {
+		if err := m.osInterface.Symlink(containerLog, legacySymlink); err != nil {
+			klog.Errorf("Failed to create legacy symbolic link %q to container %q log %q: %v",
+				legacySymlink, containerID, containerLog, err)
+		}
+	}
+
+	if container.Lifecycle != nil && container.Lifecycle.PostStart != nil {
+		kubeContainerID := kubecontainer.ContainerID{
+			Type: m.runtimeName,
+			ID:   containerID,
+		}
+		msg, handlerErr := m.runner.Run(kubeContainerID, pod, container, container.Lifecycle.PostStart)
+		if handlerErr != nil {
+			m.recordContainerEvent(pod, container, kubeContainerID.ID, v1.EventTypeWarning, events.FailedPostStartHook, msg)
+			if err := m.killContainer(pod, kubeContainerID, container.Name, "FailedPostStartHook", nil); err != nil {
+				klog.Errorf("Failed to kill container %q(id=%q) in pod %q: %v, %v",
+					container.Name, kubeContainerID.String(), format.Pod(pod), ErrPostStartHook, err)
+			}
+			return msg, fmt.Errorf("%s: %v", ErrPostStartHook, handlerErr)
+		}
+	}
+
+	return "", nil
+}
 func (m *kubeGenericRuntimeManager) prepareMigrateContainer(container *v1.Container, podStatus *kubecontainer.PodStatus, options *kubecontainer.MigratePodOptions) error {
 	klog.V(2).Infof("Checkpointing container %v.", container.Name)
 

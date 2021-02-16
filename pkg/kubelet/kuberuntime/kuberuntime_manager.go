@@ -796,10 +796,6 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 		klog.V(4).Infof("Creating %v %+v in pod %v", typeName, spec.container, format.Pod(pod))
 		klog.Info("start container docker docker docker", pod.Name)
 		// home := os.Getenv("HOME")
-		triggerDockerMigrate := "/var/lib/kubelet/indeed"
-		klog.Info("start container docker docker docker", triggerDockerMigrate)
-		os.Create(triggerDockerMigrate)
-		klog.Info("start container docker docker docker", triggerDockerMigrate)
 		// NOTE (aramase) podIPs are populated for single stack and dual stack clusters. Send only podIPs.
 		if msg, err := m.startContainer(podSandboxID, podSandboxConfig, spec, pod, podStatus, pullSecrets, podIP, podIPs); err != nil {
 			startContainerResult.Fail(err, msg)
@@ -845,7 +841,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 	// This contains most parts from the regular start() function
 	klog.Info("Should we migrate?", pod.Status.Phase, pod.Spec.ClonePod, len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers))
 	klog.V(2).Info(pod.ObjectMeta.Annotations["snapshotPath"])
-	if (pod.Spec.ClonePod != "" || (pod.ObjectMeta.Annotations["snapshotPath"] != "" && pod.ObjectMeta.Annotations["snapshotPath"] == "restore")) && len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers) {
+	if (pod.Spec.ClonePod != "" || (pod.ObjectMeta.Annotations["snapshotPath"] != "" && pod.ObjectMeta.Annotations["snapshotPolicy"] == "restore")) && len(podContainerChanges.ContainersToStart) == len(pod.Spec.Containers) {
 		containerIDs := make([]string, len(podContainerChanges.ContainersToStart))
 		containerConfigs := make([]*runtimeapi.ContainerConfig, len(podContainerChanges.ContainersToStart))
 		startContainerResults := make([]*kubecontainer.SyncResult, len(podContainerChanges.ContainersToStart))
@@ -875,7 +871,6 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 			}
 
 		}
-
 		var migResult migration.Result
 		var checkPointPath string
 		if pod.Spec.ClonePod != "" {
@@ -907,11 +902,22 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 				}
 				klog.V(2).Info("start container from chechpoint", checkPointPath)
 				klog.V(2).Info("start container from chechpoint", pod.Name)
-
-				if msg, err := m.restoreContainer(podSandboxConfig, containerStartSpec(&pod.Spec.Containers[idx]), pod, containerIDs[idx], containerConfigs[idx], checkPointPath); err != nil {
-					startContainerResults[idx].Fail(err, msg)
-					utilruntime.HandleError(fmt.Errorf("container start failed: %v: %s", err, msg))
-					return
+				if pod.ObjectMeta.Annotations["runtime"] != "docker" {
+					if msg, err := m.restoreContainer(podSandboxConfig, containerStartSpec(&pod.Spec.Containers[idx]), pod, containerIDs[idx], containerConfigs[idx], checkPointPath); err != nil {
+						startContainerResults[idx].Fail(err, msg)
+						utilruntime.HandleError(fmt.Errorf("container start failed: %v: %s", err, msg))
+						return
+					}
+				} else {
+					triggerDockerMigrate := "/var/lib/kubelet/indeed"
+					klog.Info("create indeed to restore container docker docker", triggerDockerMigrate)
+					os.Create(triggerDockerMigrate)
+					klog.Info("create indeed to restore container docker docker", triggerDockerMigrate)
+					if msg, err := m.restoreContainerDocker(podSandboxConfig, containerStartSpec(&pod.Spec.Containers[idx]), pod, containerIDs[idx], containerConfigs[idx], checkPointPath); err != nil {
+						startContainerResults[idx].Fail(err, msg)
+						utilruntime.HandleError(fmt.Errorf("container start failed: %v: %s", err, msg))
+						return
+					}
 				}
 				wg.Done()
 			}(idx)
